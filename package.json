@@ -1,0 +1,31 @@
+{
+  "name": "webtorrent-runner",
+  "version": "1.0.0",
+  "description": "CLI tool to stream torrents directly to VLC or browser.",
+  "main": "webtorrent-runner.js",
+  "bin": {
+    "webtorrent-runner": "./webtorrent-runner.js"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "webtorrent": "1.9.7",
+    "yargs": "^17.7.2"
+  },
+  "pkg": {
+    "targets": ["node18-win-x64"],
+    "assets": [
+      "node_modules/webtorrent/**/*",
+      "node_modules/bittorrent-tracker/**/*",
+      "node_modules/utp-native/**/*",
+      "node_modules/simple-peer/**/*",
+      "node_modules/run-parallel/**/*",
+      "node_modules/thirty-two/**/*"
+    ],
+    "scripts": [
+      "webtorrent-runner.js"
+    ]
+  },
+  "scripts": {
+    "build": "pkg . --no-bytecode --public --targets node18-win-x64 --output dist/webtorrent-runner.exe"
+  }
+}
