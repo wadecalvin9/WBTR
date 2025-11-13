@@ -142,66 +142,44 @@ function launchPlayer(url) {
   if (vlcPath) {
     const args = [
       url,
-      'vlc://quit',             // Quit at end-of-playback (or after stream)
       '--no-video-title-show',
       '--network-caching=1000',
-      '--vout=any',             // Software rendering, no Direct3D
-      '--play-and-exit'         // Fallback quit
+      '--vout=any',
+      '--play-and-exit',
+      'vlc://quit'
     ];
 
-    // Key change: stdio 'pipe' for reliable exit detection (close streams manually)
+    // ✅ Launch VLC in foreground (no hidden window)
     playerProc = spawn(vlcPath, args, {
-      windowsHide: true,
-      detached: false,          // false: Better event reliability on Win
-      stdio: ['pipe', 'pipe', 'pipe']  // Pipe all for proper close/exit
-    });
-
-    // Close stdio to avoid hangs
-    playerProc.stdin.end();
-    playerProc.stdout.destroy();
-    playerProc.stderr.destroy();
-
-    console.log('🎬 VLC launched (GUI, no D3D, auto-quit on close/end)');
-
-    // Event-based detection (now reliable with pipes)
-    playerProc.on('exit', (code, signal) => {
-      console.log(`VLC exited via event (code=${code}, signal=${signal})`);
-      clearInterval(pollInterval);
-      shutdown(0);
-    });
-
-    playerProc.on('close', (code) => {
-      console.log(`VLC closed via streams (code=${code})`);
-      clearInterval(pollInterval);
-      shutdown(0);
-    });
-
-    // Fallback: Poll for VLC process death (Windows-specific, every 2s)
-    if (isWin) {
-      pollInterval = setInterval(() => {
-        spawn('tasklist', ['/FI', 'IMAGENAME eq vlc.exe'], { stdio: 'pipe' })
-          .on('close', (pollCode) => {
-            if (pollCode !== 0) {  // No VLC process = dead
-              console.log('VLC detected closed via poll');
-              clearInterval(pollInterval);
-              shutdown(0);
-            }
-          });
-      }, 2000);
-    }
-  } else {
-    // Browser fallback (unchanged, uses cmd)
-    playerProc = spawn('cmd', ['/c', 'start', '""', url], {
-      windowsHide: true,
-      detached: true,
+      windowsHide: false,   // ❗ show the window in foreground
+      detached: false,      // don't run in background process group
       stdio: 'ignore'
     });
-    console.log('🌐 Opened in browser.');
-    playerProc.unref();  // Browser doesn't need polling
-  }
 
-  if (playerProc && !isWin) playerProc.unref();  // Non-Win: unref after setup
+    console.log('🎬 VLC launched in foreground.');
+
+    // Detect when VLC closes
+    playerProc.on('exit', (code) => {
+      console.log(`VLC exited (code=${code})`);
+      shutdown(0);
+    });
+
+  } else {
+    // Browser fallback — opens and focuses new tab
+    const browserCmd = isWin
+      ? `start "" "${url}"`
+      : `xdg-open "${url}"`;
+    
+    spawn(isWin ? 'cmd' : 'sh', isWin ? ['/c', browserCmd] : ['-c', browserCmd], {
+      stdio: 'ignore',
+      windowsHide: false,   // ❗ allow focus
+      detached: true
+    }).unref();
+
+    console.log('🌐 Browser launched in foreground.');
+  }
 }
+
 
 /* ──────────────────────────────────────────────────────────────
    3. Shutdown (clears poll too)
